@@ -1,6 +1,8 @@
 package mcjty.lostcities.network;
 
 
+import mcjty.lostcities.LostCities;
+import mcjty.lostcities.setup.ModSetup;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
@@ -11,21 +13,11 @@ import net.minecraftforge.fml.relauncher.Side;
  */
 public class PacketHandler {
     private static int ID = 12;
-    private static int packetId = 0;
 
     /**
      * The static instance of SimpleNetworkWrapper used for registering and handling messages.
      */
     public static SimpleNetworkWrapper INSTANCE = null;
-
-    /**
-     * Returns the next available packet ID.
-     *
-     * @return the next available packet ID
-     */
-    public static int nextPacketID() {
-        return packetId++;
-    }
 
     /**
      * Constructor for PacketHandler.
@@ -48,15 +40,19 @@ public class PacketHandler {
      *
      * @param channelName the name of the network channel
      */
-    public static void registerMessages(String channelName) {
+    public static void registerChannelAndMessages(String channelName) {
+        try {
         INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel(channelName);
+        } catch (Exception e) {
+            LostCities.setup.getLogger().error("Error Registering Channel: {}, {}", channelName, e.getMessage());
+        }
         registerMessages();
     }
 
     /**
      * Registers the network messages for both the server and client sides.
      */
-    public static void registerMessages() {
+    private static void registerMessages() {
         // Server side
         INSTANCE.registerMessage(PacketRequestProfile.Handler.class, PacketRequestProfile.class, nextID(), Side.SERVER);
 

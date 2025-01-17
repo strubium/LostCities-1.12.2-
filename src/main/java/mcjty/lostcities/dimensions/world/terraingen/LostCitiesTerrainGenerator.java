@@ -28,7 +28,6 @@ import net.minecraft.world.gen.NoiseGeneratorPerlin;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import org.apache.commons.lang3.tuple.Pair;
-import net.jafama.FastMath;
 import java.util.Random;
 
 import java.util.*;
@@ -70,16 +69,16 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
     private Character street2;
     private int streetBorder;
 
-    private NoiseGeneratorPerlin rubbleNoise;
-    private NoiseGeneratorPerlin leavesNoise;
-    private NoiseGeneratorPerlin ruinNoise;
+    private final NoiseGeneratorPerlin rubbleNoise;
+    private final NoiseGeneratorPerlin leavesNoise;
+    private final NoiseGeneratorPerlin ruinNoise;
 
     private static char randomLeafs[] = null;
 
-    private IPrimerDriver driver;
-    private IslandTerrainGenerator islandTerrainGenerator = new IslandTerrainGenerator(IslandTerrainGenerator.ISLANDS);
-    private CavernTerrainGenerator cavernTerrainGenerator = new CavernTerrainGenerator();
-    private SpaceTerrainGenerator spaceTerrainGenerator = new SpaceTerrainGenerator();
+    private final IPrimerDriver driver;
+    private final IslandTerrainGenerator islandTerrainGenerator = new IslandTerrainGenerator(IslandTerrainGenerator.ISLANDS);
+    private final CavernTerrainGenerator cavernTerrainGenerator = new CavernTerrainGenerator();
+    private final SpaceTerrainGenerator spaceTerrainGenerator = new SpaceTerrainGenerator();
 
 
     public LostCitiesTerrainGenerator(LostCityChunkGenerator provider) {
@@ -229,7 +228,7 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
             liquidChar = (char) Block.BLOCK_STATE_IDS.get(profile.getLiquidBlock());
 
             // glassChar is the only one that be be a IBlockState
-            glassChar = (IBlockState) Blocks.GLASS.getDefaultState();
+            glassChar = Blocks.GLASS.getDefaultState();
 
             leavesChar = (char) Block.BLOCK_STATE_IDS.get(Blocks.LEAVES.getDefaultState()
                     .withProperty(BlockLeaves.DECAYABLE, false));
@@ -886,7 +885,7 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
                         }
                     }
 
-                    double percent = FastMath.atan(mindist / 85) * 0.8;
+                    double percent = Math.atan(mindist / 85) * 0.8;
                     int offset = Math.abs(heightmap.getHeight(x,z) - height);
                     flattenChunkBorder(info, x, (int)(offset * percent), z, provider.rand, height);
                 }
@@ -908,7 +907,7 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
                     }
                     int height = minheight;//info.getCityGroundLevel();
 
-                    double percent = FastMath.atan(mindist / 85) * 0.8;
+                    double percent = Math.atan(mindist / 85) * 0.8;
                     int offset = Math.abs(heightmap.getHeight(x,z) - height);
                     flattenChunkBorderDownwards(info, x, (int)(offset * percent), z, provider.rand, height);
                 }
@@ -1192,7 +1191,7 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
                                 if (getRailChars().contains(driver.getBlock())) {
                                     driver.block(rail);
                                 }
-                                driver.current(x, y, 9);;
+                                driver.current(x, y, 9);
                                 if (getRailChars().contains(driver.getBlock())) {
                                     driver.block(rail);
                                 }
@@ -2171,8 +2170,12 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
                              int ox, int oy, int oz, boolean airWaterLevel,
                              boolean isHighway, boolean isHighwayRunningX, boolean isHighwayIntersecting,
                              boolean isBuildingFront, Direction buildingFrontDirection) {
+        // Ensure compiledPalette and localPalette are properly initialized
         CompiledPalette compiledPalette = info.getCompiledPalette();
-        // Cache the combined palette?
+        if (compiledPalette == null) {
+            throw new RuntimeException("CompiledPalette is null for part: " + part.getName());
+        }
+
         Palette localPalette = part.getLocalPalette();
         if (localPalette != null) {
             compiledPalette = new CompiledPalette(compiledPalette, localPalette);
@@ -2180,14 +2183,17 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
 
         boolean nowater = part.getMetaBoolean("nowater");
 
+        // Loop through the part’s dimensions and generate blocks
         for (int x = 0; x < part.getXSize(); x++) {
             for (int z = 0; z < part.getZSize(); z++) {
                 char[] vs = part.getVSlice(x, z);
                 if (vs != null) {
+                    // Ensure valid coordinates after rotation
                     int rx = ox + transform.rotateX(x, z);
                     int rz = oz + transform.rotateZ(x, z);
                     driver.current(rx, oy, rz);
                     int len = vs.length;
+
                     for (int y = 0; y < len; y++) {
                         char c = vs[y];
                         Character b = compiledPalette.get(c);
@@ -2197,15 +2203,15 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
                             if (test != null) {
                                 b = test;
                             } else {
-                                b = compiledPalette.get(c); // this allows non-directional blocks in buildings fronts
+                                b = compiledPalette.get(c); // non-directional blocks in building fronts
                             }
-
                         }
 
                         if (b == null) {
                             throw new RuntimeException("Could not find entry '" + c + "' in the palette for part '" + part.getName() + "'!");
                         }
 
+                        // Highway processing
                         if (isHighway && !isHighwayIntersecting) {
                             Character charX = compiledPalette.getHighwayX(c);
                             Character charZ = compiledPalette.getHighwayZ(c);
@@ -2217,17 +2223,15 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
                                 b = charZ;
                                 driver.add(charZ);
                                 IBlockState stateZ = Block.BLOCK_STATE_IDS.getByValue(b);
-                                String debug;
                                 if (stateZ != null) {
                                     ResourceLocation loc = stateZ.getBlock().getRegistryName();
-                                    if (loc != null) {
-                                        debug = loc.getPath();
-                                    } else debug = "nullOnResourceLocation";
-                                } else debug = "nullState";
+                                    String debug = (loc != null) ? loc.getPath() : "nullOnResourceLocation";
+                                } else {
+                                    String debug = "nullState";
+                                }
                                 continue;
                             }
                         }
-
 
                         CompiledPalette.Info inf = compiledPalette.getInfo(c);
 
@@ -2238,71 +2242,70 @@ public class LostCitiesTerrainGenerator extends NormalTerrainGenerator {
                                 b = (char) Block.BLOCK_STATE_IDS.get(bs);
                             } else if (getRailChars().contains(b)) {
                                 IBlockState bs = Block.BLOCK_STATE_IDS.getByValue(b);
-                                PropertyEnum<BlockRailBase.EnumRailDirection> shapeProperty;
+                                PropertyEnum<BlockRailBase.EnumRailDirection> shapeProperty = null;
                                 if (bs.getBlock() == Blocks.RAIL) {
                                     shapeProperty = BlockRail.SHAPE;
                                 } else if (bs.getBlock() == Blocks.GOLDEN_RAIL) {
                                     shapeProperty = BlockRailPowered.SHAPE;
-                                } else {
-                                    throw new RuntimeException("Error with rail!");
                                 }
-                                BlockRailBase.EnumRailDirection shape = bs.getValue(shapeProperty);
-                                bs = bs.withProperty(shapeProperty, transform.transform(shape));
-                                b = (char) Block.BLOCK_STATE_IDS.get(bs);
+                                if (shapeProperty != null) {
+                                    BlockRailBase.EnumRailDirection shape = bs.getValue(shapeProperty);
+                                    bs = bs.withProperty(shapeProperty, transform.transform(shape));
+                                    b = (char) Block.BLOCK_STATE_IDS.get(bs);
+                                }
                             }
                         }
-                        // We don't replace the world where the part is empty (air)
-                        if (b != airChar) {
 
-                            if (b == liquidChar) {
-                                if (info.profile.AVOID_WATER) {
-                                    b = airChar;
-                                }
+                        // Block replacement conditions
+                        if (b != airChar) {
+                            if (b == liquidChar && info.profile.AVOID_WATER) {
+                                b = airChar;
                             } else if (b == hardAirChar) {
                                 if (airWaterLevel && !info.profile.AVOID_WATER && !nowater) {
                                     b = (oy + y) < info.waterLevel ? liquidChar : airChar;
                                 } else {
                                     b = airChar;
                                 }
-                            } else if (inf != null) {
-
-                                // Patches added by Dalton
-                                if (inf.isTileEntity()) {
-                                    info.getTodoChunk(rx, rz).addTileEntityTodo(new BlockPos(info.chunkX * 16 + rx, oy + y, info.chunkZ * 16 + rz));
-                                }
-
-                                Map<String, Integer> orientations = inf.getTorchOrientations();
-                                if (orientations != null) {
-                                    if (info.profile.GENERATE_LIGHTING) {
-                                        info.addTorchTodo(driver.getCurrent(), orientations);
-                                    } else {
-                                        // No torches
-                                        b = airChar;
+                            } else {
+                                BlockPos pos = new BlockPos(info.chunkX * 16 + rx, oy + y, info.chunkZ * 16 + rz);
+                                if (inf != null) {
+                                    // TileEntity and loot handling
+                                    if (inf.isTileEntity()) {
+                                        info.getTodoChunk(rx, rz).addTileEntityTodo(pos);
                                     }
-                                } else if (inf.getLoot() != null && !inf.getLoot().isEmpty()) {
-                                    if (!info.noLoot) {
-                                        info.getTodoChunk(rx, rz).addLootTodo(new BlockPos(info.chunkX * 16 + rx, oy + y, info.chunkZ * 16 + rz),
-                                                new BuildingInfo.ConditionTodo(inf.getLoot(), part.getName(), info));
+    
+                                    Map<String, Integer> orientations = inf.getTorchOrientations();
+                                    if (orientations != null) {
+                                        if (info.profile.GENERATE_LIGHTING) {
+                                            info.addTorchTodo(driver.getCurrent(), orientations);
+                                        } else {
+                                            b = airChar; // No torches
+                                        }
+                                    } else if (inf.getLoot() != null && !inf.getLoot().isEmpty()) {
+                                        if (!info.noLoot) {
+                                            info.getTodoChunk(rx, rz).addLootTodo(pos,
+                                                    new BuildingInfo.ConditionTodo(inf.getLoot(), part.getName(), info));
+                                        }
+                                    } else if (inf.getMobId() != null && !inf.getMobId().isEmpty()) {
+                                        if (info.profile.GENERATE_SPAWNERS && !info.noLoot) {
+                                            String mobid = inf.getMobId();
+                                            info.getTodoChunk(rx, rz).addSpawnerTodo(pos,
+                                                    new BuildingInfo.ConditionTodo(mobid, part.getName(), info));
+                                        } else {
+                                            b = airChar; // No spawners
+                                        }
                                     }
-                                } else if (inf.getMobId() != null && !inf.getMobId().isEmpty()) {
-                                    if (info.profile.GENERATE_SPAWNERS && !info.noLoot) {
-                                        String mobid = inf.getMobId();
-                                        info.getTodoChunk(rx, rz).addSpawnerTodo(new BlockPos(info.chunkX * 16 + rx, oy + y, info.chunkZ * 16 + rz),
-                                                new BuildingInfo.ConditionTodo(mobid, part.getName(), info));
-                                    } else {
-                                        b = airChar;
-                                    }
-                                }
-                            } else if (getCharactersNeedingLightingUpdate().contains(b)) {
-                                info.getTodoChunk(rx, rz).addLightingUpdateTodo(new BlockPos(info.chunkX * 16 + rx, oy + y, info.chunkZ * 16 + rz));
-                            } else if (getCharactersNeedingTodo().contains(b)) {
-                                IBlockState bs = Block.BLOCK_STATE_IDS.getByValue(b);
-                                Block block = bs.getBlock();
-                                if (block instanceof BlockSapling || block instanceof BlockFlower) {
-                                    if (info.profile.AVOID_FOLIAGE) {
-                                        b = airChar;
-                                    } else {
-                                        info.getTodoChunk(rx, rz).addSaplingTodo(new BlockPos(info.chunkX * 16 + rx, oy + y, info.chunkZ * 16 + rz));
+                                } else if (getCharactersNeedingLightingUpdate().contains(b)) {
+                                    info.getTodoChunk(rx, rz).addLightingUpdateTodo(pos);
+                                } else if (getCharactersNeedingTodo().contains(b)) {
+                                    IBlockState bs = Block.BLOCK_STATE_IDS.getByValue(b);
+                                    Block block = bs.getBlock();
+                                    if (block instanceof BlockSapling || block instanceof BlockFlower) {
+                                        if (info.profile.AVOID_FOLIAGE) {
+                                            b = airChar;
+                                        } else {
+                                            info.getTodoChunk(rx, rz).addSaplingTodo(pos);
+                                        }
                                     }
                                 }
                             }

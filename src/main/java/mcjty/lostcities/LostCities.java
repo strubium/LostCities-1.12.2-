@@ -48,7 +48,7 @@ public class LostCities {
      * The mod instance.
      * This instance is used to access the mod's main class from other parts of the code.
      */
-    @Mod.Instance("lostcitiessquared")
+    @Mod.Instance(MODID)
     public static LostCities instance;
 
     /**
